@@ -1,4 +1,5 @@
 const BLUR = 0x000000000000Ad05Ccc4F10045630fb830B95127;
+const BLEND = 0x29469395eaf6f95920e59f858042f0e28d98a20b;
 
 mfn map_trades(BLOCK) {
     let trades = blur::OrdersMatched(BLOCK, [global::BLUR]);
@@ -6,5 +7,14 @@ mfn map_trades(BLOCK) {
         return #{
         trades: trades
         };
+    }
+}
+
+mfn map_lends(BLOCK) {
+    let loans = blend::LoanOfferTaken(BLOCK, [global::BLEND]);
+    if loans.len() != 0 {
+        return #{
+            loans: loans
+        }
     }
 }
