@@ -1,0 +1,10 @@
+const BLUR = 0x000000000000Ad05Ccc4F10045630fb830B95127;
+
+mfn map_trades(BLOCK) {
+    let trades = blur::OrdersMatched(BLOCK, [global::BLUR]);
+    if trades.len() != 0 {
+        return #{
+        trades: trades
+        };
+    }
+}

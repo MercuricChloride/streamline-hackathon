@@ -1,0 +1,10 @@
+type Transfer @entity {
+  id:ID!
+  from: String!
+  to: String!
+}
+type Approval @entity {
+  id:ID!
+  owner: String!
+  approved: String!
+}
