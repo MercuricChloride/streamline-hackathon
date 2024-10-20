@@ -1,25 +1,89 @@
 const BLUR = 0x000000000000Ad05Ccc4F10045630fb830B95127;
 const BLEND = 0x29469395eaf6f95920e59f858042f0e28d98a20b;
+const AZUKI = 0xed5af388653567af2f388e6224dc7c4b3241c544;
+const NFT_CONTRACTS = [
+    // Azuki
+    0xed5af388653567af2f388e6224dc7c4b3241c544,
+    // Nouns
+    //0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03
+];
 
 mfn map_trades(BLOCK) {
     let trades = blur::OrdersMatched(BLOCK, [global::BLUR]);
-    if trades.len() != 0 {
-        return #{
+    #{
         trades: trades
-        };
     }
 }
 
 mfn map_events(BLOCK) {
-    let loans = blend::LoanOfferTaken(BLOCK, [global::BLEND]);
-    if loans.len() != 0 {
-        return #{
-            loans: loans
-        }
+    let loans = blend::LoanOfferTaken(BLOCK, [global::BLEND]).filter(|loan| {
+        loan.collection == global::AZUKI
+    });
+    
+    let trades = blur::OrdersMatched(BLOCK, [global::BLUR]);
+    let transfers = erc721::Transfer(BLOCK, [global::AZUKI]);
+     #{
+        loans: loans,
+        trades: trades,
+        transfers: transfers
     }
 }
 
-sfn buy_counts(map_)
+mfn map_trade_tokens(map_events) {
+    let output = [];
+    let trades = map_events?.trades ?? [];
+
+    for trade in trades {
+        let buy_buy_token = trade.buy.buy_token;
+        let buy_sell_token = trade.buy.sell_token;
+        let sell_buy_token = trade.sell.buy_token;
+        let sell_sell_token = trade.sell.sell_token;
+        output.push(#{
+            buy: #{
+                buy_token: buy_buy_token,
+                sell_token: buy_sell_token
+            },
+            sell: #{
+                buy_token: sell_buy_token,
+                sell_token: sell_sell_token
+            }
+        });
+    }
+
+    if output.is_not_empty() {
+        return output
+    }
+}
+
+sfn buy_counts(map_trade_tokens, s:add) {
+    let trades = map_trade_tokens ?? [];
+
+    for trade in trades {
+        s.add(trade.buy.buy_token, 1);
+        
+        s.add(trade.sell.buy_token, 1);
+    }
+}
+
+mfn map_buy_counts(buy_counts:deltas) {
+    let deltas = buy_counts.deltas ?? [];
+
+    let output = #{};
+
+    if deltas.is_not_empty() {
+        return deltas
+    }
+}
+
+sfn sell_counts(map_trade_tokens, s:add) {
+    let trades = map_trade_tokens ?? [];
+
+    for trade in trades {
+        s.add(trade.buy.sell_token, 1);
+        
+        s.add(trade.sell.sell_token, 1);
+    }
+}
 
 sfn loan_volumes(map_events, s:add) {
     let loans = map_events?.loans ?? [];
@@ -31,12 +95,18 @@ sfn loan_volumes(map_events, s:add) {
     }
 }
 
-mfn map_store_lends(loan_volumes:deltas) {
-    let volume_deltas = loan_volumes.deltas ?? [];
+mfn map_store_lends(buy_counts:deltas) {
+    let deltas = buy_counts.deltas ?? [];
 
-    if volume_deltas.len() != 0 {
-        return #{
-            volume_changes: volume_deltas
-        }
+    if deltas.is_not_empty() {
+        return deltas
     }
+}
+
+method is_not_empty() {
+    return this.len() != 0;
+}
+
+method is_empty() {
+    return this.len() == 0;
 }
