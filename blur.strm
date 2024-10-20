@@ -20,12 +20,27 @@ mfn map_events(BLOCK) {
         loan.collection == global::AZUKI
     });
     
-    let trades = blur::OrdersMatched(BLOCK, [global::BLUR]);
-    let transfers = erc721::Transfer(BLOCK, [global::AZUKI]);
-     #{
-        loans: loans,
-        trades: trades,
-        transfers: transfers
+    let trades = blur::OrdersMatched(BLOCK, [global::BLUR]).filter(|trade| {
+        trade.buy.sell_token == global::AZUKI || trade.sell.sell_token == global::AZUKI
+    });
+
+    let transfers = erc721::Transfer(BLOCK, [global::AZUKI])
+        .filter(|transfer| {
+            global::NFT_CONTRACTS.contains(transfer.tx_meta.address)
+        })
+        .map(|transfer| {
+        let token_uri = erc721::tokenUri(global::AZUKI, transfer.token_id);
+        #{
+            token_uri: token_uri
+        } + transfer
+    });
+
+    if loans.is_not_empty() || trades.is_not_empty() || transfers.is_not_empty() {
+        return #{
+            loans: loans,
+            trades: trades,
+            transfers: transfers
+        }
     }
 }
 
@@ -70,8 +85,18 @@ mfn map_buy_counts(buy_counts:deltas) {
 
     let output = #{};
 
-    if deltas.is_not_empty() {
-        return deltas
+    for delta in deltas {
+        let token = delta.key;
+        let count = delta.new_value;
+        output[token] = count;
+    }
+
+    if output.is_not_empty() {
+        let output_arr = [];
+        for key in output.keys() {
+            output_arr.push([key, output[key]]);
+        }
+        return output_arr
     }
 }
 
