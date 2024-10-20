@@ -10,11 +10,33 @@ mfn map_trades(BLOCK) {
     }
 }
 
-mfn map_lends(BLOCK) {
+mfn map_events(BLOCK) {
     let loans = blend::LoanOfferTaken(BLOCK, [global::BLEND]);
     if loans.len() != 0 {
         return #{
             loans: loans
+        }
+    }
+}
+
+sfn buy_counts(map_)
+
+sfn loan_volumes(map_events, s:add) {
+    let loans = map_events?.loans ?? [];
+
+    for loan in loans {
+        let collection = loan.collection;
+        let value = loan.loan_amount;
+        s.add(collection, value);
+    }
+}
+
+mfn map_store_lends(loan_volumes:deltas) {
+    let volume_deltas = loan_volumes.deltas ?? [];
+
+    if volume_deltas.len() != 0 {
+        return #{
+            volume_changes: volume_deltas
         }
     }
 }
